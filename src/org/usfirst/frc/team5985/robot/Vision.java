@@ -9,8 +9,6 @@ public class Vision implements ITableListener {
 	double gearLiftAngle;
 	double gearLiftDistance;
 	
-	//public void valueChanged(ITable itable)
-	
 	public void sendRequest() {
 		visTable.putBoolean("request", true);
 	}

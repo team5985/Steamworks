@@ -1,34 +1,38 @@
 package org.usfirst.frc.team5985.robot;
+
 import com.ctre.CANTalon;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Joystick.AxisType;
+import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.CameraServer;
 import com.ctre.CANTalon.FeedbackDevice;
 import com.ctre.CANTalon.TalonControlMode;
+import com.kauailabs.navx.frc.AHRS;
 
 public class Robot extends IterativeRobot {
-	Vision _vision;
+	AHRS navx = new AHRS(SPI.Port.kMXP);
+	Vision _vision = new Vision();
 	
-	CameraServer cam0;
+	boolean rotateToTarget;  //TODO: make this be not here
 	
-	CANTalon frontLeftDrive;
-	CANTalon backLeftDrive;
-	
-	CANTalon frontRightDrive;
-	CANTalon backRightDrive;
-  
-	CANTalon _talon = new CANTalon(0);	
+//	CameraServer cam0;
+//	
+//	CANTalon frontLeftDrive;
+//	CANTalon backLeftDrive;
+//	
+//	CANTalon frontRightDrive;
+//	CANTalon backRightDrive;
+//  
+//	CANTalon _talon = new CANTalon(0);	
 	Joystick _joy = new Joystick(0);	
-	StringBuilder _sb = new StringBuilder();
-	int _loops = 0;
-	double SpeedSet = 0;
+//	StringBuilder _sb = new StringBuilder();
+//	int _loops = 0;
+//	double SpeedSet = 0;
 	
 	public void robotInit() {
-		_vision = new Vision();
-		
-		cam0 = CameraServer.getInstance();
-		cam0.startAutomaticCapture();
+//		cam0 = CameraServer.getInstance();
+//		cam0.startAutomaticCapture();
 		
 //		
 //        /* first choose the sensor */
@@ -49,25 +53,25 @@ public class Robot extends IterativeRobot {
 		
 		/* Drive code */
 		// Left drive motors
-		frontLeftDrive = new CANTalon(2);
-		frontLeftDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-		
-		backLeftDrive = new CANTalon(3);
-		backLeftDrive.changeControlMode(TalonControlMode.Follower);
-		backLeftDrive.set(frontLeftDrive.getDeviceID());
-		
-		// Right drive motors
-		frontRightDrive = new CANTalon(0);
-		frontRightDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-		
-		backRightDrive = new CANTalon(1);
-		backRightDrive.changeControlMode(TalonControlMode.Follower);
-		backRightDrive.set(frontRightDrive.getDeviceID());
-		
-		// Auto code
-		frontLeftDrive.setEncPosition(0);
-		frontLeftDrive.reverseSensor(false);
-		frontRightDrive.setEncPosition(0);
+//		frontLeftDrive = new CANTalon(2);
+//		frontLeftDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+//		
+//		backLeftDrive = new CANTalon(3);
+//		backLeftDrive.changeControlMode(TalonControlMode.Follower);
+//		backLeftDrive.set(frontLeftDrive.getDeviceID());
+//		
+//		// Right drive motors
+//		frontRightDrive = new CANTalon(0);
+//		frontRightDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+//		
+//		backRightDrive = new CANTalon(1);
+//		backRightDrive.changeControlMode(TalonControlMode.Follower);
+//		backRightDrive.set(frontRightDrive.getDeviceID());
+//		
+//		// Auto code
+//		frontLeftDrive.setEncPosition(0);
+//		frontLeftDrive.reverseSensor(false);
+//		frontRightDrive.setEncPosition(0);
         
 	}
 	
@@ -75,18 +79,18 @@ public class Robot extends IterativeRobot {
 	}
 	
 	public void autonomousPeriodic() {
-		System.out.println(frontRightDrive.getEncPosition());
-		
-		if (frontRightDrive.getEncPosition() < 1696.5) { //TODO: Fix this (it's ugly)
-			frontRightDrive.set(-1);
-			frontLeftDrive.set(1);
-		} else if (frontRightDrive.getEncPosition() < 3393) {
-			frontRightDrive.set(-0.1);
-			frontLeftDrive.set(0.1);
-		} else {
-			frontRightDrive.set(0);
-			frontLeftDrive.set(0);
-		}
+//		System.out.println(frontRightDrive.getEncPosition());
+//		
+//		if (frontRightDrive.getEncPosition() < 1696.5) { //TODO: Fix this (it's ugly)
+//			frontRightDrive.set(-1);
+//			frontLeftDrive.set(1);
+//		} else if (frontRightDrive.getEncPosition() < 3393) {
+//			frontRightDrive.set(-0.1);
+//			frontLeftDrive.set(0.1);
+//		} else {
+//			frontRightDrive.set(0);
+//			frontLeftDrive.set(0);
+//		}
 	}
 	
     /**
@@ -147,26 +151,46 @@ public class Robot extends IterativeRobot {
         */
     	
     	//Encoder test
-    	System.out.print("Left Enc: ");
-    	System.out.println(frontLeftDrive.getEncPosition());
+//    	System.out.print("Left Enc: ");
+//    	System.out.println(frontLeftDrive.getEncPosition());
+//    	
+//    	System.out.print("Right Enc: ");
+//    	System.out.println(frontRightDrive.getEncPosition()); 
     	
-    	System.out.print("Right Enc: ");
-    	System.out.println(frontRightDrive.getEncPosition());
-    	
-    	
+    	// Gyro
     	
     	// Drive code
-    	double throttle = _joy.getThrottle();
-    	System.out.println(throttle);
-    	
+//    	double throttle = _joy.getThrottle();
+//    	System.out.println(throttle);
+//    	
     	double steering = _joy.getX();
-    	double power = _joy.getY() * throttle;
+    	double power = 0;  //_joy.getY() * throttle;
     	
-    	double leftPower = -power + steering;
+    	
+    	// Vision
+    	if (_joy.getRawButton(1)) {
+    		_vision.sendRequest();
+//    		System.out.println("gearLiftAngle: " + _vision.getGearLiftAngle());
+    		navx.reset();
+    		while (_joy.getRawButton(1)) {
+    		}
+    	}
+    	
+    	if (_joy.getRawButton(2)) {
+    		
+    	}
+    	
+    	double targetAngle = _vision.getGearLiftAngle();
+		double robotAngle = (double) navx.getYaw();
+		double angleError = targetAngle - robotAngle;
+				
+		steering += 0.01 * angleError;
+		System.out.println("Angle Error : " + angleError);
+		
+		double leftPower = -power + steering;
     	double rightPower = power + steering;
-    	
-    	frontLeftDrive.set(leftPower);
-    	frontRightDrive.set(rightPower);
-    	
+    	    	
+//    	frontLeftDrive.set(leftPower);
+//    	frontRightDrive.set(rightPower);
     }
 }

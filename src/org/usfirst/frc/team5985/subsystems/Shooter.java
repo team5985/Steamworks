@@ -15,7 +15,7 @@ public class Shooter {
 	double SpeedSet = 0;
 	
 	public Shooter() {
-		shooterMotor = new CANTalon(15);
+		shooterMotor = new CANTalon(3);
 		
 		shooterMotor.setFeedbackDevice(FeedbackDevice.CtreMagEncoder_Relative);
 	    shooterMotor.reverseSensor(true);
@@ -36,7 +36,6 @@ public class Shooter {
 	 * Will run in teleopPeriodic
 	 */
 	public void runShooter() {
-    	// get gamepad axis 
     	double motorOutput = shooterMotor.getOutputVoltage() / shooterMotor.getBusVoltage();
       	if ((_joy.getRawButton(5)) == true) {
     		SpeedSet = SpeedSet-0.05;

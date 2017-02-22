@@ -24,18 +24,35 @@ public class DriveTrain {
 	CANTalon rightDrive;
 	CANTalon rightSlaveDrive;
 	
+	final int ENCODER_COUNT_PER_REVOLUTION = 1080;  // E4P Encoders
+	final double DISTANCE_PER_REVOLUTION = 638.371;  // 8" Pneumatic wheels, mm
+	
+	private double targetHeading = 0;
+	
 	public DriveTrain() {
 		_vision = new Vision();
 		
 		_joy = new Joystick(0);
+		
 		navx = new AHRS(SPI.Port.kMXP);
 		
 		
+		// Right drive motors
+		rightDrive = new CANTalon(13);
+		rightDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+		
+		rightSlaveDrive = new CANTalon(12);
+		rightSlaveDrive.changeControlMode(TalonControlMode.Follower);
+		rightSlaveDrive.set(rightDrive.getDeviceID());
+		
+		rightDrive.setEncPosition(0);
+		
+		
 		// Left drive motors
-		leftDrive = new CANTalon(2);
+		leftDrive = new CANTalon(14);
 		leftDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
 		
-		leftSlaveDrive = new CANTalon(3);
+		leftSlaveDrive = new CANTalon(15);
 		leftSlaveDrive.changeControlMode(TalonControlMode.Follower);
 		leftSlaveDrive.set(leftDrive.getDeviceID());
 		
@@ -43,19 +60,26 @@ public class DriveTrain {
 		leftDrive.reverseSensor(false);
 		
 		
-		// Right drive motors
-		rightDrive = new CANTalon(0);
-		rightDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-		
-		rightSlaveDrive = new CANTalon(1);
-		rightSlaveDrive.changeControlMode(TalonControlMode.Follower);
-		rightSlaveDrive.set(rightDrive.getDeviceID());
-		
-		rightDrive.setEncPosition(0);
 	}
 	
 	/**
-	 * Generic method that will set the power of the drive motors
+	 * Controls whether using joystick control or aiming using the gyro
+	 */
+	public void runTeleopDriveTrain() {
+		String _state;
+		if (_joy.getRawButton(1) && (_state != "GEAR_AIM")) {
+			updateVisionTarget();
+			_state = "GEAR_AIM";
+		} else if (_joy.getRawButton(1) && (_state == "GEAR_AIM")) {
+			gearAutoAim();
+		} else {
+			_state = "TELEOP";
+			teleopDrive();
+		}
+	}
+	
+	/**
+	 * Set the power of the drive motors
 	 * @param power
 	 * @param steering
 	 * @param throttle
@@ -69,6 +93,16 @@ public class DriveTrain {
 	}
 	
 	/**
+	 * Drive using the gyro sensor
+	 * @param power
+	 * @param throttle
+	 */
+	public void driveStraight(double power, double throttle) {
+		double angleError = (navx.getYaw() - targetHeading) * 0.015;
+		drive(power, angleError, throttle);
+	}
+	
+	/**
 	 * Same as drive(), but adds joystick control
 	 */
 	public void teleopDrive() {
@@ -79,21 +113,120 @@ public class DriveTrain {
 		drive(power, steering, throttle);
 	}
 	
+	/**
+	 * Aim using the Vision data
+	 */
 	public void gearAutoAim() {
 		// Vision auto-aim test
-    	if (_joy.getRawButton(1)) {
-    		_vision.sendRequest();
-//    		System.out.println("gearLiftAngle: " + _vision.getGearLiftAngle());
-    		navx.reset();
-    		while (_joy.getRawButton(1)) {
-    		}
-    	}
-    	
-    	double targetAngle = _vision.getGearLiftAngle();
-		double robotAngle = (double) navx.getYaw();
+		double targetAngle = _vision.getGearLiftAngle();
+		
+		turnToAngle(targetAngle);
+	}
+	
+	/**
+	 * Asks the raspi for vision data
+	 */
+	public void updateVisionTarget() {
+		_vision.sendRequest();
+//		System.out.println("gearLiftAngle: " + _vision.getGearLiftAngle());
+	}
+	
+	/**
+	 * idk if use this be careful
+	 */
+	public void gearAutoDrive() {
+		// Vision auto-drive test
+		if (_joy.getRawButton(2)) {
+			_vision.sendRequest();
+			leftDrive.setEncPosition(0);
+			rightDrive.setEncPosition(0);
+			
+			while (_joy.getRawButton(2)) {
+			}
+		}
+		double targetDistance = _vision.getGearLiftDistance() / DISTANCE_PER_REVOLUTION;
+		double robotDistance = getRightEncoderCount() / ENCODER_COUNT_PER_REVOLUTION;
+		double distanceError = targetDistance - robotDistance;
+				
+		double power = 0.01 * distanceError;
+		System.out.println("Distance Error : " + distanceError);
+		drive(power,0,1);
+	}
+	
+	/**
+	 * Drive a certain number of rotations.
+	 * @param power
+	 * @param targetDistance
+	 */
+	public void driveDistance(double power, double targetDistance) {
+		leftDrive.setEncPosition(0);
+		rightDrive.setEncPosition(0);
+		
+		// 1 rotation = 1080
+		if (leftDrive.getEncPosition() < (targetDistance * 1080)) { // 1080 counts per revolution
+			driveStraight(power, 1);
+		} else {
+			drive(0, 0, 0);
+		}
+	}
+	
+	/**
+	 * Turn to a relative angle
+	 * @param targetAngle
+	 */
+	public void turnToAngle(double targetAngle) {
+		navx.zeroAngle();
+		
+		double robotAngle = navx.getYaw();
 		double angleError = targetAngle - robotAngle;
 				
-		double steering = 0.01 * angleError;
-		System.out.println("Angle Error : " + angleError);
+		double steering = 0.015 * angleError;
+		double throttle = -(_joy.getThrottle() - 1 ) / 2;
+//		System.out.println("Angle Error : " + angleError);
+		drive(_joy.getY(),steering,throttle); // Only controls turning, driver still controls power
+	}
+	
+	/**
+	 * Sets a variable for driveStraight to use
+	 * @param heading
+	 */
+	public void setTargetHeading(double heading) {
+		targetHeading = heading;
+	}
+	
+	/**
+	 * Get the number of counts by the left encoder
+	 * @return left encoder position
+	 */
+	public double getLeftEncoderCount() {
+		return leftDrive.getEncPosition();
+	}
+	
+	/**
+	 * Get the number of counts by the right encoder
+	 * @return right encoder position
+	 */
+	public double getRightEncoderCount() {
+		return rightDrive.getEncPosition();
+	}
+	
+	/**
+	 * Get the rotations the left drivetrain has made
+	 * @return
+	 */
+	public double getLeftEncoderRotations() {
+		return getLeftEncoderCount() / 1080;
+	}
+	
+	/**
+	 * Get the rotations the left drivetrain has made
+	 * @return
+	 */
+	public double getRightEncoderRotations() {
+		return getRightEncoderCount() / 1080;
+	}
+	
+	public double getYaw() {
+		return navx.getYaw();
 	}
 }
